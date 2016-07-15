@@ -14,9 +14,9 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         spinalcord.cpp \
-    qcustomplot.cpp
+        qcustomplot.cpp
 
 HEADERS  += spinalcord.h \
-    qcustomplot.h
+            qcustomplot.h
 
 FORMS    += spinalcord.ui

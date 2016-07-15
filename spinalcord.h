@@ -33,6 +33,7 @@ private:
     QTimer dataTimer;
     QSerialPort *m_serialPort;
     QTextStream m_standardOutput;
+    int countForReplot;
 };
 
 #endif // SPINALCORD_H

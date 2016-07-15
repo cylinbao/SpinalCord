@@ -4,7 +4,8 @@
 
 #define dataTreshold 10
 #define colorTreshold 500
-#define timeInterval 1000
+#define timeInterval 500
+#define numToReplot 5
 
 spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     QMainWindow(parent),
@@ -15,6 +16,8 @@ spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     ui->setupUi(this);
 
     setupPlotting(ui->customPlot);
+
+    countForReplot = 0;
 
     connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
     dataTimer.start(timeInterval);
@@ -109,6 +112,20 @@ void spinalcord::plotReceivedData(int value0)
     static double lastPointKey = 0;
     if (key-lastPointKey > 0.01) // at most add point every 10 ms
     {
+        // add data to lines:
+        ui->customPlot->graph(0)->addData(key, value0);
+        // set data of dots:
+        //ui->customPlot->graph(1)->clearData();
+        ui->customPlot->graph(1)->addData(key, value0);
+        // remove data of lines that's outside visible range:
+        ui->customPlot->graph(0)->removeDataBefore(key-8);
+        // rescale value (vertical) axis to fit the current data:
+        ui->customPlot->graph(0)->rescaleValueAxis();
+        lastPointKey = key;
+    }
+
+    ///*
+    if(countForReplot == numToReplot){
         if(value0 < colorTreshold){
             ui->customPlot->graph(0)->setPen(QPen(Qt::red));
             ui->customPlot->graph(1)->setPen(QPen(Qt::red));
@@ -118,22 +135,17 @@ void spinalcord::plotReceivedData(int value0)
             ui->customPlot->graph(1)->setPen(QPen(Qt::blue));
         }
 
-        // add data to lines:
-        ui->customPlot->graph(0)->addData(key, value0);
-        // set data of dots:
-        ui->customPlot->graph(1)->clearData();
-        ui->customPlot->graph(1)->addData(key, value0);
-        // remove data of lines that's outside visible range:
-        ui->customPlot->graph(0)->removeDataBefore(key-8);
-        // rescale value (vertical) axis to fit the current data:
-        ui->customPlot->graph(0)->rescaleValueAxis();
-        lastPointKey = key;
-    }
-    // make key axis range scroll with the data (at a constant range size of 8):
-    ui->customPlot->xAxis->setRange(key+0.25, 8, Qt::AlignRight);
-    ui->customPlot->replot();
+        // make key axis range scroll with the data (at a constant range size of 8):
+        ui->customPlot->xAxis->setRange(key+0.25, 8, Qt::AlignRight);
+        ui->customPlot->replot();
 
+        countForReplot = 0;
+    }
+    else
+        countForReplot++;
+    //*/
     // calculate frames per second:
+    ///*
     static double lastFpsKey;
     static int frameCount;
     ++frameCount;
@@ -147,4 +159,5 @@ void spinalcord::plotReceivedData(int value0)
         lastFpsKey = key;
         frameCount = 0;
     }
+    //*/
 }
