@@ -26,7 +26,7 @@ private slots:
     void serialPortReader();
     void handleReadyRead();
     void handleError(QSerialPort::SerialPortError error);
-    void startPlot();
+    void handleStartButton();
 
 private:
     Ui::spinalcord *ui;
@@ -36,6 +36,7 @@ private:
     QTextStream m_standardOutput;
     QPushButton *m_startButton;
     int countForReplot;
+    bool startFlag;
 };
 
 #endif // SPINALCORD_H

@@ -15,15 +15,16 @@ spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
 {
     ui->setupUi(this);
 
-    QPushButton *m_startButton = ui->startButton;
-    connect(m_startButton, SIGNAL(released()),this, SLOT(startPlot());
+    m_startButton = ui->startButton;
+    startFlag = false;
+    connect(m_startButton, SIGNAL(clicked()), this, SLOT(handleStartButton()));
 
     setupPlotting(ui->customPlot);
 
     countForReplot = 0;
 
-    connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
-    dataTimer.start(timeInterval);
+    //connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
+    //dataTimer.start(timeInterval);
 }
 
 spinalcord::~spinalcord()
@@ -165,7 +166,21 @@ void spinalcord::plotReceivedData(int value0)
     //*/
 }
 
-void spinalcord::startPlot()
+void spinalcord::handleStartButton()
 {
-    m_startButton->setText("Stop");
+   if(startFlag == false){
+       m_startButton->setText("Stop");
+       startFlag = true;
+
+       //connect(m_serialPort, SIGNAL(readyRead()), SLOT(handleReadyRead()));
+       connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
+       dataTimer.start(timeInterval);
+   }
+   else{
+       m_startButton->setText("Start");
+       startFlag= false;
+       dataTimer.stop();
+       dataTimer.disconnect();
+       m_serialPort->disconnect();
+   }
 }
