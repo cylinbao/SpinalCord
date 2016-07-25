@@ -15,6 +15,9 @@ spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
 {
     ui->setupUi(this);
 
+    QPushButton *m_startButton = ui->startButton;
+    connect(m_startButton, SIGNAL(released()),this, SLOT(startPlot());
+
     setupPlotting(ui->customPlot);
 
     countForReplot = 0;
@@ -160,4 +163,9 @@ void spinalcord::plotReceivedData(int value0)
         frameCount = 0;
     }
     //*/
+}
+
+void spinalcord::startPlot()
+{
+    m_startButton->setText("Stop");
 }

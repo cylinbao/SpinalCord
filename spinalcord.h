@@ -26,6 +26,7 @@ private slots:
     void serialPortReader();
     void handleReadyRead();
     void handleError(QSerialPort::SerialPortError error);
+    void startPlot();
 
 private:
     Ui::spinalcord *ui;
