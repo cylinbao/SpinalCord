@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>823</width>
-    <height>539</height>
+    <height>586</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -37,7 +37,7 @@
      <bool>false</bool>
     </property>
     <property name="text">
-     <string>Received Data</string>
+     <string>Spinal Signals</string>
     </property>
    </widget>
    <widget class="QCustomPlot" name="customPlot" native="true">
@@ -48,6 +48,19 @@
       <width>811</width>
       <height>471</height>
      </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="startButton">
+    <property name="geometry">
+     <rect>
+      <x>720</x>
+      <y>510</y>
+      <width>88</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Start</string>
     </property>
    </widget>
   </widget>

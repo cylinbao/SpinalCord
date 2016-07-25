@@ -34,6 +34,7 @@ private:
     QTimer dataTimer;
     QSerialPort *m_serialPort;
     QTextStream m_standardOutput;
+    QPushButton *m_startButton;
     int countForReplot;
 };
 
