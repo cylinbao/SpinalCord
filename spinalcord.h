@@ -21,6 +21,7 @@ public:
 
     void setupPlotting(QCustomPlot *customPlot);
     void plotReceivedData(int recData);
+    void calShortAve();
 
 private slots:
     void serialPortReader();
@@ -36,7 +37,11 @@ private:
     QTextStream m_standardOutput;
     QPushButton *m_startButton;
     int countForReplot;
-    bool startFlag;
+    bool startFlag, signalFlagF, signalFlagB;
+    quint64 accumulation, counter;
+    int shortArray[5], BigArray[20], smallArray[30];
+    int longAve, shortAve;
+    int minBig, maxBig, maxSmall;
 };
 
 #endif // SPINALCORD_H

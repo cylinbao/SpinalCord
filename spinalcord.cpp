@@ -2,16 +2,21 @@
 #include "ui_spinalcord.h"
 #include <iostream>
 
-#define dataTreshold 10
-#define colorTreshold 500
-#define timeInterval 500
+#define dataTreshold 0
+#define colorTreshold 0
+#define timeInterval 10
 #define numToReplot 5
 
 spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::spinalcord),
     m_serialPort(serialPort),
-    m_standardOutput(stdout)
+    m_standardOutput(stdout),
+    countForReplot(0),
+    accumulation(0),
+    counter(0),
+    signalFlagF(false),
+    signalFlagB(false)
 {
     ui->setupUi(this);
 
@@ -21,7 +26,10 @@ spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
 
     setupPlotting(ui->customPlot);
 
-    countForReplot = 0;
+    // initialize arrays
+    for(int i=0; i<5; i++){
+        shortArray[i] = 0;
+    }
 
     //connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
     //dataTimer.start(timeInterval);
@@ -47,7 +55,42 @@ void spinalcord::handleReadyRead()
         // the line is available in buf
         //std::cout << buf;
         int recData = std::atoi(buf);
-        m_standardOutput << "Recieved data is: " << recData << endl;
+        // accumulate recData
+        accumulation += recData;
+        counter++;
+        shortArray[counter%5] = recData;
+        longAve = accumulation/counter;
+
+        m_standardOutput << "longAve: " << longAve;
+
+        if(counter > 4)
+            calShortAve();
+
+        if(signalFlagF == true){
+            static int countToTwenty = 0;
+            if(countToTwenty < 20){
+                BigArray[countToTwenty] = recData;
+                countToTwenty++;
+            }
+            else{
+                // check max and min here
+            }
+        }
+        if(signalFlagB == true){
+            static int countToThirty = 0;
+            if(countToThirty < 30){
+                BigArray[countToThirty] = recData;
+                countToThirty++;
+            }
+            else{
+                signalFlagF = false;
+                signalFlagB = false;
+                // check max here and check for alarm
+            }
+        }
+        // if signalFlagB hasn't turned to true for too long, also set alarm
+
+        //m_standardOutput << "Recieved data is: " << recData << endl;
         if(recData > dataTreshold)
             plotReceivedData(recData);
         else
@@ -56,6 +99,24 @@ void spinalcord::handleReadyRead()
     }
     if(!dataTimer.isActive())
         dataTimer.start(timeInterval);
+}
+
+void spinalcord::calShortAve()
+{
+    int i, acc = 0;
+    for(i = 0; i < 5; i++){
+        acc += shortArray[i];
+    }
+
+    shortAve = acc/5;
+    m_standardOutput << "\t shortAve: " << shortAve << endl;
+
+    if((shortAve - longAve) != 0){
+        if(signalFlagF == false)
+            signalFlagF = true;
+        else
+            signalFlagB = true;
+    }
 }
 
 void spinalcord::handleError(QSerialPort::SerialPortError serialPortError)
@@ -94,9 +155,9 @@ void spinalcord::setupPlotting(QCustomPlot *customPlot)
 
 
     customPlot->xAxis->setTickLabelType(QCPAxis::ltDateTime);
-    customPlot->xAxis->setDateTimeFormat("hh:mm:ss");
+    customPlot->xAxis->setDateTimeFormat("mm:ss");
     customPlot->xAxis->setAutoTickStep(false);
-    customPlot->xAxis->setTickStep(2);
+    customPlot->xAxis->setTickStep(1);
     customPlot->axisRect()->setupFullAxesBox();
 
     // make left and bottom axes transfer their ranges to right and top axes:
@@ -110,23 +171,23 @@ void spinalcord::plotReceivedData(int value0)
 #if QT_VERSION < QT_VERSION_CHECK(4, 7, 0)
     double key = 0;
 #else
-    double key = QDateTime::currentDateTime().toMSecsSinceEpoch()/1000.0;
+    double key = QDateTime::currentDateTime().toMSecsSinceEpoch()/100.0;
 #endif
 
-    static double lastPointKey = 0;
-    if (key-lastPointKey > 0.01) // at most add point every 10 ms
-    {
+    //static double lastPointKey = 0;
+    //if (key-lastPointKey > 0.00001) // at most add point every 10 ms
+    //{
         // add data to lines:
         ui->customPlot->graph(0)->addData(key, value0);
         // set data of dots:
         //ui->customPlot->graph(1)->clearData();
         ui->customPlot->graph(1)->addData(key, value0);
         // remove data of lines that's outside visible range:
-        ui->customPlot->graph(0)->removeDataBefore(key-8);
+        ui->customPlot->graph(0)->removeDataBefore(key-16);
         // rescale value (vertical) axis to fit the current data:
         ui->customPlot->graph(0)->rescaleValueAxis();
-        lastPointKey = key;
-    }
+    //    lastPointKey = key;
+    //}
 
     ///*
     if(countForReplot == numToReplot){
@@ -140,7 +201,7 @@ void spinalcord::plotReceivedData(int value0)
         }
 
         // make key axis range scroll with the data (at a constant range size of 8):
-        ui->customPlot->xAxis->setRange(key+0.25, 8, Qt::AlignRight);
+        ui->customPlot->xAxis->setRange(key+0.25, 16, Qt::AlignRight);
         ui->customPlot->replot();
 
         countForReplot = 0;
