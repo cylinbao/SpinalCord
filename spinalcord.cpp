@@ -6,6 +6,7 @@
 #define colorTreshold 0
 #define timeInterval 10
 #define numToReplot 5
+#define diffTreshold 0.5
 
 spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     QMainWindow(parent),
@@ -66,29 +67,28 @@ void spinalcord::handleReadyRead()
         if(counter > 4)
             calShortAve();
 
-        if(signalFlagF == true){
-            static int countToTwenty = 0;
-            if(countToTwenty < 20){
-                BigArray[countToTwenty] = recData;
-                countToTwenty++;
+        if((signalFlagF == true) && (signalFlagB == false)){
+            static int bigCounter = 0;
+            if(bigCounter < bigArraySize){
+                bigArray[bigCounter] = recData;
+                bigCounter++;
             }
             else{
+                bigCounter = 0;
                 // check max and min here
             }
         }
-        if(signalFlagB == true){
-            static int countToThirty = 0;
-            if(countToThirty < 30){
-                BigArray[countToThirty] = recData;
-                countToThirty++;
+        else if(signalFlagB == true){
+            static int smallCounter = 0;
+            if(smallCounter < smallArraySize){
+                smallArray[smallCounter] = recData;
+                smallCounter++;
             }
             else{
-                signalFlagF = false;
-                signalFlagB = false;
+                smallCounter = 0;
                 // check max here and check for alarm
             }
         }
-        // if signalFlagB hasn't turned to true for too long, also set alarm
 
         //m_standardOutput << "Recieved data is: " << recData << endl;
         if(recData > dataTreshold)
@@ -111,12 +111,35 @@ void spinalcord::calShortAve()
     shortAve = acc/5;
     m_standardOutput << "\t shortAve: " << shortAve << endl;
 
-    if((shortAve - longAve) != 0){
-        if(signalFlagF == false)
+    int diff;
+    diff = shortAve - longAve;
+    if(diff < 0)
+        diff = -diff;
+
+    qint64 key = QDateTime::currentDateTime().toMSecsSinceEpoch();
+    static qint64 lastKey;
+
+    if(signalFlagF == false){
+        if(diff > diffTreshold){
             signalFlagF = true;
-        else
-            signalFlagB = true;
+            lastKey = key;
+            m_standardOutput << "Set signalFlagF\n";
+        }
     }
+    else if((signalFlagB == false) && ((key - lastKey) > 35)){
+        if(diff > diffTreshold){
+            signalFlagB = true;
+            lastKey = key;
+            m_standardOutput << "Set signalFlagB\n";
+        }
+    }
+    else if((key - lastKey) > 150){
+        signalFlagF = false;
+        signalFlagB = false;
+        m_standardOutput << "Reset signalFlagF and signalFlagB\n";
+    }
+
+    // if signalFlagB hasn't turned to true for too long, also set alarm
 }
 
 void spinalcord::handleError(QSerialPort::SerialPortError serialPortError)

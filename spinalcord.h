@@ -7,6 +7,9 @@
 #include <QTextStream>
 #include "qcustomplot.h"
 
+#define bigArraySize 20
+#define smallArraySize 30
+
 namespace Ui {
 class spinalcord;
 }
@@ -39,7 +42,7 @@ private:
     int countForReplot;
     bool startFlag, signalFlagF, signalFlagB;
     quint64 accumulation, counter;
-    int shortArray[5], BigArray[20], smallArray[30];
+    int shortArray[5], bigArray[20], smallArray[30];
     int longAve, shortAve;
     int minBig, maxBig, maxSmall;
 };
