@@ -40,11 +40,9 @@ private:
     QTextStream m_standardOutput;
     QPushButton *m_startButton;
     int countForReplot;
-    bool startFlag, signalFlagF, signalFlagB;
-    quint64 accumulation, counter;
-    int shortArray[5], bigArray[20], smallArray[30];
-    int longAve, shortAve;
-    int minBig, maxBig, maxSmall;
+    bool startFlag, stimFlag;
+    bool windowStart;
+    bool saveFlag;
 };
 
 #endif // SPINALCORD_H

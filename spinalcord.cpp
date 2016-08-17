@@ -2,11 +2,12 @@
 #include "ui_spinalcord.h"
 #include <iostream>
 
-#define dataTreshold 0
-#define colorTreshold 0
 #define timeInterval 10
 #define numToReplot 5
-#define diffTreshold 0.5
+#define stimThreshold 6
+#define saveThreshold 5
+#define startInterval 100
+#define windowInterval 155
 
 spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     QMainWindow(parent),
@@ -14,10 +15,9 @@ spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     m_serialPort(serialPort),
     m_standardOutput(stdout),
     countForReplot(0),
-    accumulation(0),
-    counter(0),
-    signalFlagF(false),
-    signalFlagB(false)
+    stimFlag(false),
+    windowStart(false),
+    saveFlag(true)
 {
     ui->setupUi(this);
 
@@ -26,11 +26,6 @@ spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     connect(m_startButton, SIGNAL(clicked()), this, SLOT(handleStartButton()));
 
     setupPlotting(ui->customPlot);
-
-    // initialize arrays
-    for(int i=0; i<5; i++){
-        shortArray[i] = 0;
-    }
 
     //connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
     //dataTimer.start(timeInterval);
@@ -49,97 +44,68 @@ void spinalcord::serialPortReader()
 
 void spinalcord::handleReadyRead()
 {
+    static int counter = 0;
+    static int max = 0;
+
     if(m_serialPort->canReadLine()){
-    char buf[5];
-    qint64 lineLength = m_serialPort->readLine(buf, sizeof(buf));
-    if (lineLength != -1) {
-        // the line is available in buf
-        //std::cout << buf;
-        int recData = std::atoi(buf);
-        // accumulate recData
-        accumulation += recData;
-        counter++;
-        shortArray[counter%5] = recData;
-        longAve = accumulation/counter;
+        char buf[5];
+        qint64 lineLength = m_serialPort->readLine(buf, sizeof(buf));
+        if (lineLength != -1) {
+            // the line is available in buf
+            //std::cout << buf;
+            int recData = std::atoi(buf);
 
-        m_standardOutput << "longAve: " << longAve;
-
-        if(counter > 4)
-            calShortAve();
-
-        if((signalFlagF == true) && (signalFlagB == false)){
-            static int bigCounter = 0;
-            if(bigCounter < bigArraySize){
-                bigArray[bigCounter] = recData;
-                bigCounter++;
-            }
-            else{
-                bigCounter = 0;
-                // check max and min here
-            }
-        }
-        else if(signalFlagB == true){
-            static int smallCounter = 0;
-            if(smallCounter < smallArraySize){
-                smallArray[smallCounter] = recData;
-                smallCounter++;
-            }
-            else{
-                smallCounter = 0;
-                // check max here and check for alarm
-            }
-        }
-
-        //m_standardOutput << "Recieved data is: " << recData << endl;
-        if(recData > dataTreshold)
             plotReceivedData(recData);
-        else
-            plotReceivedData(0);
+            m_standardOutput << "Recieved data is: " << recData << endl;
+
+            if(stimFlag == false){
+                if(recData > stimThreshold){
+                    stimFlag = true;
+                    m_standardOutput << "Turn stimFlag to true" << endl;
+                }
+            }
+            else{ // stimFlag == true
+                if(windowStart == false){
+                    if(counter < startInterval)
+                        counter++;
+                    else{
+                        counter = 0;
+                        max = 0;
+
+                        windowStart = true;
+                        m_standardOutput << "Turn windowStart to true" << endl;
+                    }
+                }
+                else{
+                    if(counter < windowInterval){
+                        counter++;
+                        if(max < recData)
+                            max = recData;
+                    }
+                    else{
+                        counter = 0;
+
+                        m_standardOutput << "Recorded max is: " << max << endl;
+                        if(max < saveThreshold){
+                            ui->customPlot->graph(0)->setPen(QPen(Qt::red));
+                            ui->customPlot->graph(1)->setPen(QPen(Qt::red));
+                        }
+                        else{
+                            ui->customPlot->graph(0)->setPen(QPen(Qt::blue));
+                            ui->customPlot->graph(1)->setPen(QPen(Qt::blue));
+                        }
+                        stimFlag = false;
+                        windowStart = false;
+
+                        m_standardOutput << "Turn off stimFlag and windowStart" << endl;
+                    }
+                }
+            }
+        }
     }
-    }
+
     if(!dataTimer.isActive())
         dataTimer.start(timeInterval);
-}
-
-void spinalcord::calShortAve()
-{
-    int i, acc = 0;
-    for(i = 0; i < 5; i++){
-        acc += shortArray[i];
-    }
-
-    shortAve = acc/5;
-    m_standardOutput << "\t shortAve: " << shortAve << endl;
-
-    int diff;
-    diff = shortAve - longAve;
-    if(diff < 0)
-        diff = -diff;
-
-    qint64 key = QDateTime::currentDateTime().toMSecsSinceEpoch();
-    static qint64 lastKey;
-
-    if(signalFlagF == false){
-        if(diff > diffTreshold){
-            signalFlagF = true;
-            lastKey = key;
-            m_standardOutput << "Set signalFlagF\n";
-        }
-    }
-    else if((signalFlagB == false) && ((key - lastKey) > 35)){
-        if(diff > diffTreshold){
-            signalFlagB = true;
-            lastKey = key;
-            m_standardOutput << "Set signalFlagB\n";
-        }
-    }
-    else if((key - lastKey) > 150){
-        signalFlagF = false;
-        signalFlagB = false;
-        m_standardOutput << "Reset signalFlagF and signalFlagB\n";
-    }
-
-    // if signalFlagB hasn't turned to true for too long, also set alarm
 }
 
 void spinalcord::handleError(QSerialPort::SerialPortError serialPortError)
@@ -214,15 +180,6 @@ void spinalcord::plotReceivedData(int value0)
 
     ///*
     if(countForReplot == numToReplot){
-        if(value0 < colorTreshold){
-            ui->customPlot->graph(0)->setPen(QPen(Qt::red));
-            ui->customPlot->graph(1)->setPen(QPen(Qt::red));
-        }
-        else{
-            ui->customPlot->graph(0)->setPen(QPen(Qt::blue));
-            ui->customPlot->graph(1)->setPen(QPen(Qt::blue));
-        }
-
         // make key axis range scroll with the data (at a constant range size of 8):
         ui->customPlot->xAxis->setRange(key+0.25, 16, Qt::AlignRight);
         ui->customPlot->replot();
