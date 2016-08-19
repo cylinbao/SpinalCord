@@ -5,6 +5,7 @@
 #include <QtSerialPort/QSerialPort>
 #include <QByteArray>
 #include <QTextStream>
+#include <QSoundEffect>
 #include "qcustomplot.h"
 
 #define bigArraySize 20
@@ -25,6 +26,8 @@ public:
     void setupPlotting(QCustomPlot *customPlot);
     void plotReceivedData(int recData);
     void calShortAve();
+    void setupSound();
+    void decodeToBinary(int dec);
 
 private slots:
     void serialPortReader();
@@ -39,6 +42,7 @@ private:
     QSerialPort *m_serialPort;
     QTextStream m_standardOutput;
     QPushButton *m_startButton;
+    QSoundEffect effect;
     int countForReplot;
     bool startFlag, stimFlag;
     bool windowStart;

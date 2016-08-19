@@ -2,7 +2,7 @@
 #include "ui_spinalcord.h"
 #include <iostream>
 
-#define timeInterval 10
+#define timeInterval 100
 #define numToReplot 5
 #define stimThreshold 6
 #define saveThreshold 5
@@ -26,14 +26,23 @@ spinalcord::spinalcord(QSerialPort *serialPort, QWidget *parent) :
     connect(m_startButton, SIGNAL(clicked()), this, SLOT(handleStartButton()));
 
     setupPlotting(ui->customPlot);
-
-    //connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
-    //dataTimer.start(timeInterval);
+    setupSound();
+    /*
+    connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
+    dataTimer.start(timeInterval);
+    */
 }
 
 spinalcord::~spinalcord()
 {
     delete ui;
+}
+
+void spinalcord::setupSound()
+{
+    effect.setSource(QUrl::fromLocalFile("/home/myislin/Projects/QT/SpinalCord/emergency027.wav"));
+    effect.setLoopCount(QSoundEffect::Infinite);
+    effect.setVolume(1);
 }
 
 void spinalcord::serialPortReader()
@@ -46,6 +55,7 @@ void spinalcord::handleReadyRead()
 {
     static int counter = 0;
     static int max = 0;
+    static int lastData = 0;
 
     if(m_serialPort->canReadLine()){
         char buf[5];
@@ -54,10 +64,23 @@ void spinalcord::handleReadyRead()
             // the line is available in buf
             //std::cout << buf;
             int recData = std::atoi(buf);
+            m_standardOutput << "Recieved data is: " << recData << "; ";
+            m_standardOutput << "Pin Values(from little to Big): ";
 
-            plotReceivedData(recData);
-            m_standardOutput << "Recieved data is: " << recData << endl;
+            decodeToBinary(recData);
 
+            m_standardOutput << endl;
+
+            if(startFlag == true){
+                if(recData != 0)
+                    plotReceivedData(recData);
+                else if(lastData == 0)
+                    plotReceivedData(recData);
+            }
+
+            lastData = recData;
+
+            /*
             if(stimFlag == false){
                 if(recData > stimThreshold){
                     stimFlag = true;
@@ -89,10 +112,12 @@ void spinalcord::handleReadyRead()
                         if(max < saveThreshold){
                             ui->customPlot->graph(0)->setPen(QPen(Qt::red));
                             ui->customPlot->graph(1)->setPen(QPen(Qt::red));
+                            effect.play();
                         }
                         else{
                             ui->customPlot->graph(0)->setPen(QPen(Qt::blue));
                             ui->customPlot->graph(1)->setPen(QPen(Qt::blue));
+                            effect.stop();
                         }
                         stimFlag = false;
                         windowStart = false;
@@ -101,6 +126,7 @@ void spinalcord::handleReadyRead()
                     }
                 }
             }
+            */
         }
     }
 
@@ -182,7 +208,7 @@ void spinalcord::plotReceivedData(int value0)
     if(countForReplot == numToReplot){
         // make key axis range scroll with the data (at a constant range size of 8):
         ui->customPlot->xAxis->setRange(key+0.25, 16, Qt::AlignRight);
-        ui->customPlot->replot();
+        //ui->customPlot->replot();
 
         countForReplot = 0;
     }
@@ -209,19 +235,43 @@ void spinalcord::plotReceivedData(int value0)
 
 void spinalcord::handleStartButton()
 {
-   if(startFlag == false){
-       m_startButton->setText("Stop");
-       startFlag = true;
+    static bool first = false;
 
-       //connect(m_serialPort, SIGNAL(readyRead()), SLOT(handleReadyRead()));
-       connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
-       dataTimer.start(timeInterval);
-   }
-   else{
-       m_startButton->setText("Start");
-       startFlag= false;
-       dataTimer.stop();
-       dataTimer.disconnect();
-       m_serialPort->disconnect();
-   }
+    if(first == false){
+        connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
+        dataTimer.start(timeInterval);
+        first = true;
+    }
+
+    if(startFlag == false){
+        m_startButton->setText("Stop");
+        startFlag = true;
+
+        //connect(m_serialPort, SIGNAL(readyRead()), SLOT(handleReadyRead()));
+        //connect(&dataTimer, SIGNAL(timeout()), this, SLOT(serialPortReader()));
+        //dataTimer.start(timeInterval);
+    }
+    else{
+        m_startButton->setText("Start");
+        startFlag= false;
+
+        //dataTimer.stop();
+        //dataTimer.disconnect();
+        //m_serialPort->disconnect();
+    }
+}
+
+void spinalcord::decodeToBinary(int dec)
+{
+    int remainder;
+
+    if(dec <= 1) {
+        m_standardOutput << dec;
+        return;
+    }
+
+    remainder = dec%2;
+    decodeToBinary(dec >> 1);
+    m_standardOutput << remainder;
+
 }
