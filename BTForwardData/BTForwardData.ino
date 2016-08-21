@@ -54,6 +54,7 @@ void loop()
   passData += readDig[8] + readDig[9];
 
   BTSerial.println(passData, DEC);
+  Serial.println(passData, DEC);
 
   delayMicroseconds(dataClock);
 }

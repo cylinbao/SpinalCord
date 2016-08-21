@@ -28,6 +28,7 @@ public:
     void calShortAve();
     void setupSound();
     void decodeToBinary(int dec);
+    int diff(int num1, int num2);
 
 private slots:
     void serialPortReader();

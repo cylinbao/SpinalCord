@@ -56,6 +56,7 @@ void spinalcord::handleReadyRead()
     static int counter = 0;
     static int max = 0;
     static int lastData = 0;
+    static int lastLastData = 0;
 
     if(m_serialPort->canReadLine()){
         char buf[5];
@@ -65,26 +66,43 @@ void spinalcord::handleReadyRead()
             //std::cout << buf;
             int recData = std::atoi(buf);
             m_standardOutput << "Recieved data is: " << recData << "; ";
-            m_standardOutput << "Pin Values(from little to Big): ";
+            m_standardOutput << "Pin Values: ";
 
             decodeToBinary(recData);
 
             m_standardOutput << endl;
 
+            ///*
             if(startFlag == true){
-                if(recData != 0)
+                if(recData != 0){
+                    //if(diff(lastLastData, recData) < 100)
+                        plotReceivedData(recData);
+                }
+                else if(lastData == 0)
                     plotReceivedData(recData);
+            }
+
+            lastLastData = lastData;
+            lastData = recData;
+            //*/
+            /*
+            if(startFlag == true){
+                if(recData != 0){
+                    if()
+                        plotReceivedData(lastLastData);
+                }
                 else if(lastData == 0)
                     plotReceivedData(recData);
             }
 
             lastData = recData;
-
+            */
             /*
             if(stimFlag == false){
                 if(recData > stimThreshold){
                     stimFlag = true;
                     m_standardOutput << "Turn stimFlag to true" << endl;
+                    effect.stop();
                 }
             }
             else{ // stimFlag == true
@@ -170,7 +188,8 @@ void spinalcord::setupPlotting(QCustomPlot *customPlot)
 
 
     customPlot->xAxis->setTickLabelType(QCPAxis::ltDateTime);
-    customPlot->xAxis->setDateTimeFormat("mm:ss");
+    //customPlot->xAxis->setDateTimeFormat("mm:ss");
+    customPlot->xAxis->setDateTimeFormat("ss");
     customPlot->xAxis->setAutoTickStep(false);
     customPlot->xAxis->setTickStep(1);
     customPlot->axisRect()->setupFullAxesBox();
@@ -186,7 +205,7 @@ void spinalcord::plotReceivedData(int value0)
 #if QT_VERSION < QT_VERSION_CHECK(4, 7, 0)
     double key = 0;
 #else
-    double key = QDateTime::currentDateTime().toMSecsSinceEpoch()/100.0;
+    double key = QDateTime::currentDateTime().toMSecsSinceEpoch()/100;
 #endif
 
     //static double lastPointKey = 0;
@@ -198,7 +217,7 @@ void spinalcord::plotReceivedData(int value0)
         //ui->customPlot->graph(1)->clearData();
         ui->customPlot->graph(1)->addData(key, value0);
         // remove data of lines that's outside visible range:
-        ui->customPlot->graph(0)->removeDataBefore(key-16);
+        ui->customPlot->graph(0)->removeDataBefore(key-50);
         // rescale value (vertical) axis to fit the current data:
         ui->customPlot->graph(0)->rescaleValueAxis();
     //    lastPointKey = key;
@@ -207,8 +226,9 @@ void spinalcord::plotReceivedData(int value0)
     ///*
     if(countForReplot == numToReplot){
         // make key axis range scroll with the data (at a constant range size of 8):
-        ui->customPlot->xAxis->setRange(key+0.25, 16, Qt::AlignRight);
-        //ui->customPlot->replot();
+        //ui->customPlot->xAxis->setRange(key+0.25, 50, Qt::AlignRight);
+        ui->customPlot->xAxis->setRange(key+0.25, 50, Qt::AlignRight);
+        ui->customPlot->replot();
 
         countForReplot = 0;
     }
@@ -272,6 +292,14 @@ void spinalcord::decodeToBinary(int dec)
 
     remainder = dec%2;
     decodeToBinary(dec >> 1);
-    m_standardOutput << remainder;
 
+    m_standardOutput << remainder;
+}
+
+int spinalcord::diff(int num1, int num2)
+{
+    if(num1 > num2)
+        return num1 - num2;
+    else
+        return num2 - num1;
 }
