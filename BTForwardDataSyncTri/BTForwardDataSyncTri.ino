@@ -1,14 +1,14 @@
 #include <SoftwareSerial.h>
 SoftwareSerial BTSerial(12, 13); // RX | TX
 
-const int dig[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+const int dig[5] = {2, 3, 4, 5, 6};
 const int extClock = 11;
 const int triggerPin = 10;
 const int ledPin = 13;
-const int signalT = 250;
+const int signalT = 224;
 //const int signalT2 = 500;
 //const int windowL = 50;
-int readDig[10];
+int readDig[5];
 int passData;
 int clkVal, lastVal;
 bool stimStart, windowStart;
@@ -23,11 +23,7 @@ void setup()
   pinMode(dig[2], INPUT);
   pinMode(dig[3], INPUT);
   pinMode(dig[4], INPUT);
-  pinMode(dig[5], INPUT);
-  pinMode(dig[6], INPUT);
-  pinMode(dig[7], INPUT);
-  pinMode(dig[8], INPUT);
-  pinMode(dig[9], INPUT);
+
   pinMode(ledPin, OUTPUT);
   pinMode(triggerPin, OUTPUT);
 
@@ -57,7 +53,7 @@ void loop()
 	else{
 		curTime = millis();
 
-		if((curTime - startTime) < 7){
+		if(((curTime - startTime) < 7) && ((curTime - startTime) > 1)){
 			clkVal = digitalRead(extClock);
 
 			if((clkVal != lastVal) && (clkVal == HIGH)){
@@ -66,28 +62,23 @@ void loop()
 				readDig[2] = digitalRead(dig[2]) << 7;
 				readDig[3] = digitalRead(dig[3]) << 6;
 				readDig[4] = digitalRead(dig[4]) << 5;
-				readDig[5] = digitalRead(dig[5]) << 4;
-				readDig[6] = digitalRead(dig[6]) << 3;
-				readDig[7] = digitalRead(dig[7]) << 2;
-				readDig[8] = digitalRead(dig[8]) << 1;
-				readDig[9] = digitalRead(dig[9]);
 
 				passData = readDig[0] + readDig[1];
 				passData += readDig[2] + readDig[3];
-				passData += readDig[4] + readDig[5];
-				passData += readDig[6] + readDig[7];
-				passData += readDig[8] + readDig[9];
+				passData += readDig[4];
 
-				//Serial.println(passData, DEC);
+				Serial.println(passData, DEC);
 				//BTSerial.println(passData, DEC);
 				if((passData < minData) && (passData > 64))
+        //if(passData < minData)
 					minData = passData;
 			}
 
 			lastVal = clkVal;
 		}
-		else if(windowStart == false){
+		else if(((curTime - startTime) >= 7) && (windowStart == false)){
       windowStart = true;
+			Serial.write("minData: ");
 			Serial.println(minData, DEC);
 
 			if(minData > signalT){
